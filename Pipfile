@@ -8,6 +8,7 @@ requests = "*"
 gspread = "*"
 oauth2client = "*"
 gspread-formatting = "*"
+pyside6 = "*"
 
 [dev-packages]
 
