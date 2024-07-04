@@ -26,6 +26,7 @@ sheet.update_acell('F1', '=COUNT(A3:A)')
 base_url = "https://bjapi.afreecatv.com/api/243000/title/129323759/comment"
 page = 1
 rank = 1
+sheet_data = []
 
 while True:
     headers = {
@@ -42,17 +43,17 @@ while True:
     }
     response = requests.get(base_url, params={"page": page, "orderby": "like_cnt"},headers=headers)
     response.raise_for_status()  # HTTP 요청 에러를 확인하고, 에러가 있을 경우 예외를 발생시킵니다.
+    print(f"request success : page {page}")
     data = response.json()
     
     if not data['data']:
         break
 
     for item in data['data']:
-        time.sleep(1.1)
         user_nick = item['user_nick']
         like_cnt = item['like_cnt']
         comment_link = f"https://bj.afreecatv.com/243000/post/129323759#comment_noti{item['p_comment_no']}"
-        sheet.append_row([rank, user_nick, comment_link, like_cnt])
+        sheet_data.append([rank, user_nick, comment_link, like_cnt])
         rank += 1
         
 
@@ -60,6 +61,13 @@ while True:
         break
 
     page += 1
+
+cnt = 1
+for row in sheet_data:
+    time.sleep(1.1)
+    sheet.append_row(row)
+    print(f"sheet data loading [{cnt}/{len(sheet_data)}]")
+    cnt += 1
 
 # 셀 가운데 정렬 설정
 fmt = cellFormat(
