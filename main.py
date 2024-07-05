@@ -4,15 +4,18 @@ import time
 import sys
 import traceback
 import threading
+import configparser
+import os
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit)
 from oauth2client.service_account import ServiceAccountCredentials
-from gspread_formatting import cellFormat, textFormat, format_cell_range
+from gspread_formatting import cellFormat, textFormat, format_cell_range, Color
 from utils import get_soul_time
 
 class App(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.load_settings() 
 
     def initUI(self):
         self.setWindowTitle('Google Sheets Updater')
@@ -24,10 +27,15 @@ class App(QWidget):
         layout.addWidget(self.url_label)
         layout.addWidget(self.url_input)
 
-        self.sheet_label = QLabel('구글  스프래드 시트 이름:')
+        self.sheet_label = QLabel('구글 스프래드 시트 이름(없으면 새로 생성):')
         self.sheet_input = QLineEdit(self)
         layout.addWidget(self.sheet_label)
         layout.addWidget(self.sheet_input)
+
+        self.email_label = QLabel('구글 시트 계정(시트 생성할 때 사용):')
+        self.email_input = QLineEdit(self)
+        layout.addWidget(self.email_label)
+        layout.addWidget(self.email_input)
 
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
@@ -42,14 +50,84 @@ class App(QWidget):
     def log(self, message):
         self.log_text.append(message)
 
+    def load_settings(self):
+        config = configparser.ConfigParser()
+
+        if not os.path.exists('settings.ini'):
+            with open('settings.ini', 'w') as configfile:
+                config['SETTINGS'] = {
+                    'base_url': '',
+                    'spreadsheet_name': ''
+                }
+                config.write(configfile)
+            self.log("Created new settings.ini file with default values.")
+        else:
+            config.read('settings.ini')
+            self.url_input.setText(config['SETTINGS'].get('base_url', ''))
+            self.sheet_input.setText(config['SETTINGS'].get('spreadsheet_name', ''))
+            self.email_input.setText(config['SETTINGS'].get('share_email', ''))
+
+    def save_settings(self):
+        config = configparser.ConfigParser()
+        config['SETTINGS'] = {
+            'base_url': self.url_input.text(),
+            'spreadsheet_name': self.sheet_input.text(),
+            'share_email': self.email_input.text()
+        }
+        with open('settings.ini', 'w') as configfile:
+            config.write(configfile)
+
     def start_update_thread(self):
+        self.save_settings() # 업데이트 하기 전에 setting 저장
+        self.submit_button.setEnabled(False) # 스레드 완료될 때 까지 입력버튼 비활성화
         update_thread = threading.Thread(target=self.update_sheet)
         update_thread.start()
 
+    def set_header(self, spreadsheet, sheet):
+        # 업로드 날짜 셀 병합
+        body = {
+            'requests': [{
+                'mergeCells': {
+                    'range': {
+                        'sheetId': sheet.id,
+                        'startRowIndex': 0,
+                        'endRowIndex': 1,
+                        'startColumnIndex': 0,
+                        'endColumnIndex': 4
+                    },
+                    'mergeType': 'MERGE_ALL'
+                }
+            }]
+        }
+        spreadsheet.batch_update(body)
+        # 업로드 날짜 셀 셋팅
+        fmt = cellFormat(
+            textFormat=textFormat(bold=False, fontSize=26, foregroundColor=Color(1, 0, 0)),
+            horizontalAlignment='CENTER',
+            verticalAlignment='MIDDLE'
+        )
+        format_cell_range(sheet, 'A1', fmt)
+
+        # 신청자 수 셀 셋팅
+        fmt = cellFormat(
+            textFormat=textFormat(bold=True, fontSize=17),
+            horizontalAlignment='CENTER',
+            verticalAlignment='MIDDLE'
+        )
+        format_cell_range(sheet, 'E1', fmt)
+
+        # 신청자 수 값 셀 셋팅
+        fmt = cellFormat(
+            textFormat=textFormat(bold=False, fontSize=21),
+            horizontalAlignment='CENTER',
+            verticalAlignment='MIDDLE'
+        )
+        format_cell_range(sheet, 'F1', fmt)
 
     def update_sheet(self):
         base_url = self.url_input.text()
         sheet_name = self.sheet_input.text()
+        share_email = self.email_input.text()
 
         if not base_url or not sheet_name:
             self.log("Base URL and Spreadsheet Name are required.")
@@ -66,13 +144,20 @@ class App(QWidget):
                 spreadsheet = client.open(sheet_name)
                 self.log(f"Spreadsheet '{sheet_name}' opened successfully.")
             except gspread.SpreadsheetNotFound:
+            # 구글 시트 생성
                 spreadsheet = client.create(sheet_name)
+                # 다른 계정에 권한 부여
+                if share_email:
+                    spreadsheet.share(share_email, perm_type='user', role='writer')
+                    self.log(f"Spreadsheet shared with {share_email}")
                 self.log(f"Spreadsheet '{sheet_name}' created successfully.")
+
             sheet = spreadsheet.sheet1  # 첫 번째 시트를 선택합니다. 시트 이름으로도 접근 가능합니다.
 
             # 구글 시트 초기화
             sheet.clear()
             sheet.append_row([f"{get_soul_time()} 기준", "","","","신청수"])
+            self.set_header(spreadsheet, sheet) # 첫째 줄 글 크기, 색등 셋팅
             sheet.append_row(["순위", "닉네임", "신청댓글", "UP수"])
 
             # 신청수 입력
@@ -141,6 +226,8 @@ class App(QWidget):
         except Exception as e:
             self.log(f"An error occurred: {e}")
             self.log(traceback.format_exc())
+
+        self.submit_button.setEnabled(True) # 스레드 완료 후 입력버튼 활성화
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
