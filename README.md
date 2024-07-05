@@ -4,4 +4,5 @@
 
 좋아요 순으로 입력.
 
-![image](https://github.com/FrogTok/ChunyLand/assets/96427000/0e00f84c-49ef-471f-b7a1-85384c73a608)
+![image](https://github.com/FrogTok/ChunyLand/assets/96427000/3faf766f-a3ba-44ec-a9ad-11cb223f91b2)
+
