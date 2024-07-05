@@ -7,9 +7,10 @@ import threading
 import configparser
 import os
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit)
+from PySide6.QtGui import QIcon
 from oauth2client.service_account import ServiceAccountCredentials
 from gspread_formatting import cellFormat, textFormat, format_cell_range, Color
-from utils import get_soul_time
+from utils import get_soul_time, get_root_directory_path
 
 class App(QWidget):
     def __init__(self):
@@ -18,7 +19,10 @@ class App(QWidget):
         self.load_settings() 
 
     def initUI(self):
-        self.setWindowTitle('Google Sheets Updater')
+        self.setWindowTitle('아프리카 댓글 줄세우기')
+        icon_path = os.path.join(get_root_directory_path(), "assets/afreeca.ico")
+        self.setWindowIcon(QIcon(icon_path))
+        self.resize(400, 600)
 
         layout = QVBoxLayout()
 
