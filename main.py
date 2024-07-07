@@ -162,7 +162,7 @@ class App(QWidget):
             sheet.clear()
             sheet.append_row([f"{get_soul_time()} 기준", "","","","신청수"])
             self.set_header(spreadsheet, sheet) # 첫째 줄 글 크기, 색등 셋팅
-            sheet.append_row(["순위", "닉네임", "신청댓글", "UP수"])
+            sheet.append_row(["순위", "닉네임", "신청댓글", "UP수", "참가자 한마디"])
 
             # 신청수 입력
             sheet.update_acell('F1', '=COUNT(A3:A)')
@@ -199,7 +199,8 @@ class App(QWidget):
                     user_nick = item['user_nick']
                     like_cnt = item['like_cnt']
                     comment_link = base_url + f"#comment_noti{item['p_comment_no']}"
-                    sheet_data.append([rank, user_nick, comment_link, like_cnt])
+                    comment = item['comment']
+                    sheet_data.append([rank, user_nick, comment_link, like_cnt, comment])
                     rank += 1
                     
 
