@@ -8,4 +8,5 @@
 구글 시트 API키는 구글 클라우드에서 구글 시트를 추가한뒤 받으면 됩니다.
 
 
-![image](https://github.com/user-attachments/assets/3b05f568-ea8b-4808-ac00-4323fa8f0305)
+![image](https://github.com/user-attachments/assets/a951e092-3833-41e0-8b01-ca2da10990df)
+
