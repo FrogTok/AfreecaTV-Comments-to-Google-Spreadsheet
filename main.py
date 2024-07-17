@@ -6,7 +6,7 @@ import traceback
 import threading
 import configparser
 import os
-from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit)
+from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QFileDialog, QHBoxLayout)
 from PySide6.QtGui import QIcon
 from oauth2client.service_account import ServiceAccountCredentials
 from gspread_formatting import cellFormat, textFormat, format_cell_range, Color
@@ -50,11 +50,31 @@ class App(QWidget):
         self.log_text.setReadOnly(True)
         layout.addWidget(self.log_text)
 
+        self.key_file_path_label = QLabel('구글 시트 API 키 경로:')
+        layout.addWidget(self.key_file_path_label)
+        self.key_file_path_input = QLineEdit(self)
+        self.select_key_file_btn = QPushButton('. . .', self)
+        self.select_key_file_btn.clicked.connect(self.showFileDialog)
+
+        key_file_layout = QHBoxLayout()
+        key_file_layout.addWidget(self.key_file_path_input)
+        key_file_layout.addWidget(self.select_key_file_btn)
+
+        layout.addLayout(key_file_layout)
+
         self.submit_button = QPushButton('입력', self)
         self.submit_button.clicked.connect(self.start_update_thread)
         layout.addWidget(self.submit_button)
 
         self.setLayout(layout)
+
+    def showFileDialog(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        file_path, _ = QFileDialog.getOpenFileName(self, "QFileDialog.getOpenFileName()", "",
+                                                   "All Files (*);;Json Files (*.json)", options=options)
+        if file_path:
+            self.key_file_path_input.setText(file_path)
 
     def log(self, message):
         self.log_text.append(message)
@@ -76,6 +96,7 @@ class App(QWidget):
             self.sheet_input.setText(config['SETTINGS'].get('spreadsheet_name', ''))
             self.email_input.setText(config['SETTINGS'].get('share_email', ''))
             self.favorite_input.setText(config['SETTINGS'].get('favorite_cut', ''))
+            self.key_file_path_input.setText(config['SETTINGS'].get('api_key_file_path', ''))
 
     def save_settings(self):
         config = configparser.ConfigParser()
@@ -83,7 +104,8 @@ class App(QWidget):
             'base_url': self.url_input.text(),
             'spreadsheet_name': self.sheet_input.text(),
             'share_email': self.email_input.text(),
-            'favorite_cut': self.favorite_input.text()
+            'favorite_cut': self.favorite_input.text(),
+            'api_key_file_path': self.key_file_path_input.text()
         }
         with open('settings.ini', 'w') as configfile:
             config.write(configfile)
@@ -159,11 +181,12 @@ class App(QWidget):
 
         share_email = self.email_input.text()
         favorite_cut = int(self.favorite_input.text())
+        api_key_file_path = self.key_file_path_input.text()
 
         try:
             # Google Sheets API 인증
             scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-            creds = ServiceAccountCredentials.from_json_keyfile_name("./chuny-land-5c8ae110e16d.json", scope)
+            creds = ServiceAccountCredentials.from_json_keyfile_name(api_key_file_path, scope)
             client = gspread.authorize(creds)
 
             # 구글 시트 열기
@@ -222,12 +245,12 @@ class App(QWidget):
                     like_cnt = item['like_cnt']
                     comment_link = post_url + f"#comment_noti{item['p_comment_no']}"
                     favorite_cnt = self.request_favorite_cnt(item['user_id'])
-                    self.log(f"favorite_cnt : {favorite_cnt}")
                     if favorite_cnt >= 0:
                         is_min_favorites_reached = ("O" if  favorite_cnt >= favorite_cut else "X")
                     else :
                         is_min_favorites_reached = "-"
                     comment = item['comment']
+
                     sheet_data.append([rank, user_nick, comment_link, like_cnt, is_min_favorites_reached, comment])
                     rank += 1
 
