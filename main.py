@@ -41,6 +41,11 @@ class App(QWidget):
         layout.addWidget(self.email_label)
         layout.addWidget(self.email_input)
 
+        self.favorite_label = QLabel('즐찾 컷:')
+        self.favorite_input = QLineEdit(self)
+        layout.addWidget(self.favorite_label)
+        layout.addWidget(self.favorite_input)
+
         self.log_text = QTextEdit(self)
         self.log_text.setReadOnly(True)
         layout.addWidget(self.log_text)
@@ -70,13 +75,15 @@ class App(QWidget):
             self.url_input.setText(config['SETTINGS'].get('base_url', ''))
             self.sheet_input.setText(config['SETTINGS'].get('spreadsheet_name', ''))
             self.email_input.setText(config['SETTINGS'].get('share_email', ''))
+            self.favorite_input.setText(config['SETTINGS'].get('favorite_cut', ''))
 
     def save_settings(self):
         config = configparser.ConfigParser()
         config['SETTINGS'] = {
             'base_url': self.url_input.text(),
             'spreadsheet_name': self.sheet_input.text(),
-            'share_email': self.email_input.text()
+            'share_email': self.email_input.text(),
+            'favorite_cut': self.favorite_input.text()
         }
         with open('settings.ini', 'w') as configfile:
             config.write(configfile)
@@ -87,7 +94,7 @@ class App(QWidget):
         update_thread = threading.Thread(target=self.update_sheet)
         update_thread.start()
 
-    def set_header(self, spreadsheet, sheet):
+    def set_sheet_header(self, spreadsheet, sheet):
         # 업로드 날짜 셀 병합
         body = {
             'requests': [{
@@ -128,14 +135,30 @@ class App(QWidget):
         )
         format_cell_range(sheet, 'F1', fmt)
 
-    def update_sheet(self):
-        base_url = self.url_input.text()
-        sheet_name = self.sheet_input.text()
-        share_email = self.email_input.text()
+    def request_favorite_cnt(self, bj_id: str):
+        api_url = f"https://st.afreecatv.com/api/get_station_status.php?szBjId={bj_id}"
+        response = requests.get(api_url)
+        response.raise_for_status()  # HTTP 요청 에러를 확인하고, 에러가 있을 경우 예외를 발생시킵니다.
+        data = response.json()
+        
+        if data["RESULT"] == 0:
+            return -1
+        
+        return int(data["DATA"]["fan_cnt"])
 
-        if not base_url or not sheet_name:
-            self.log("Base URL and Spreadsheet Name are required.")
+
+    def update_sheet(self):
+        post_url = self.url_input.text()
+        sheet_name = self.sheet_input.text()
+        if not post_url or not sheet_name:
+            self.log("Post URL and Spreadsheet Name are required.")
             return
+        post_url_split = post_url.split("/")
+        bj_id = post_url_split[-3]
+        post_id = post_url_split[-1]
+
+        share_email = self.email_input.text()
+        favorite_cut = int(self.favorite_input.text())
 
         try:
             # Google Sheets API 인증
@@ -161,15 +184,14 @@ class App(QWidget):
             # 구글 시트 초기화
             sheet.clear()
             sheet.append_row([f"{get_soul_time()} 기준", "","","","신청수"])
-            self.set_header(spreadsheet, sheet) # 첫째 줄 글 크기, 색등 셋팅
-            sheet.append_row(["순위", "닉네임", "신청댓글", "UP수", "참가자 한마디"])
+            self.set_sheet_header(spreadsheet, sheet) # 첫째 줄 글 크기, 색등 셋팅
+            sheet.append_row(["순위", "닉네임", "신청댓글", "UP수", f"즐찾 충족 여부({favorite_cut}명)","참가자 한마디"])
 
             # 신청수 입력
             sheet.update_acell('F1', '=COUNT(A3:A)')
 
             # 데이터 수집 및 입력
-            base_url_split = base_url.split("/")
-            api_url = f"https://bjapi.afreecatv.com/api/{base_url_split[-3]}/title/{base_url_split[-1]}/comment"
+            api_url = f"https://bjapi.afreecatv.com/api/{bj_id}/title/{post_id}/comment"
             page = 1
             rank = 1
             sheet_data = []
@@ -198,11 +220,16 @@ class App(QWidget):
                 for item in data['data']:
                     user_nick = item['user_nick']
                     like_cnt = item['like_cnt']
-                    comment_link = base_url + f"#comment_noti{item['p_comment_no']}"
+                    comment_link = post_url + f"#comment_noti{item['p_comment_no']}"
+                    favorite_cnt = self.request_favorite_cnt(item['user_id'])
+                    self.log(f"favorite_cnt : {favorite_cnt}")
+                    if favorite_cnt >= 0:
+                        is_min_favorites_reached = ("O" if  favorite_cnt >= favorite_cut else "X")
+                    else :
+                        is_min_favorites_reached = "-"
                     comment = item['comment']
-                    sheet_data.append([rank, user_nick, comment_link, like_cnt, comment])
+                    sheet_data.append([rank, user_nick, comment_link, like_cnt, is_min_favorites_reached, comment])
                     rank += 1
-                    
 
                 if page >= data['meta']['last_page']:
                     break
