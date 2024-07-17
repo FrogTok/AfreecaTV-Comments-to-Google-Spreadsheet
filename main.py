@@ -208,7 +208,7 @@ class App(QWidget):
             sheet.clear()
             sheet.append_row([f"{get_soul_time()} 기준", "","","","신청수"])
             self.set_sheet_header(spreadsheet, sheet) # 첫째 줄 글 크기, 색등 셋팅
-            sheet.append_row(["순위", "닉네임", "신청댓글", "UP수", f"즐찾 충족 여부({favorite_cut}명)","참가자 한마디"])
+            sheet.append_row(["순위", "닉네임", "신청댓글", "UP수", f"즐찾컷({favorite_cut}명)","참가자 한마디"])
 
             # 신청수 입력
             sheet.update_acell('F1', '=COUNT(A3:A)')
