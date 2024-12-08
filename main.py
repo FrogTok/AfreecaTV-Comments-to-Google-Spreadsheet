@@ -208,7 +208,11 @@ class App(QWidget):
             sheet.clear()
             sheet.append_row([f"{get_soul_time()} 기준", "","","","신청수"])
             self.set_sheet_header(spreadsheet, sheet) # 첫째 줄 글 크기, 색등 셋팅
-            sheet.append_row(["순위", "닉네임", "신청댓글", "UP수", f"즐찾컷({favorite_cut}명)","참가자 한마디"])
+
+            rows = ["순위", "닉네임", "신청댓글", "UP수", "참가자 한마디"]
+            if favorite_cut > 0:
+                rows.insert(4,f"즐찾컷({favorite_cut}명)")
+            sheet.append_row(rows)
 
             # 신청수 입력
             sheet.update_acell('F1', '=COUNT(A3:A)')
@@ -241,17 +245,20 @@ class App(QWidget):
                     break
 
                 for item in data['data']:
-                    user_nick = item['user_nick']
-                    like_cnt = item['like_cnt']
-                    comment_link = post_url + f"#comment_noti{item['p_comment_no']}"
-                    favorite_cnt = self.request_favorite_cnt(item['user_id'])
-                    if favorite_cnt >= 0:
-                        is_min_favorites_reached = ("O" if  favorite_cnt >= favorite_cut else "X")
-                    else :
-                        is_min_favorites_reached = "-"
-                    comment = item['comment']
+                    append_data = [rank]
+                    append_data.append(item['user_nick'])
+                    append_data.append(post_url + f"#comment_noti{item['p_comment_no']}")
+                    append_data.append(item['like_cnt'])
+                    if favorite_cut > 0:
+                        favorite_cnt = self.request_favorite_cnt(item['user_id'])
+                        if favorite_cnt >= 0:
+                            is_min_favorites_reached = ("O" if  favorite_cnt >= favorite_cut else "X")
+                        else :
+                            is_min_favorites_reached = "-"
+                        append_data.append(is_min_favorites_reached)
+                    append_data.append(item['comment'])
 
-                    sheet_data.append([rank, user_nick, comment_link, like_cnt, is_min_favorites_reached, comment])
+                    sheet_data.append(append_data)
                     rank += 1
 
                 if page >= data['meta']['last_page']:

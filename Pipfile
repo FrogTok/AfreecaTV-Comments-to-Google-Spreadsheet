@@ -9,6 +9,7 @@ gspread = "*"
 oauth2client = "*"
 gspread-formatting = "*"
 pyside6 = "*"
+pytz = "*"
 
 [dev-packages]
 
