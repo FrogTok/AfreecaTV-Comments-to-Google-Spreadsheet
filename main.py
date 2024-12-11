@@ -266,12 +266,14 @@ class App(QWidget):
 
                 page += 1
 
-            cnt = 1
-            for row in sheet_data:
-                time.sleep(1.1)
-                sheet.append_row(row)
-                self.log(f"sheet data loading [{cnt}/{len(sheet_data)}]")
-                cnt += 1
+            sheet.append_rows(sheet_data)
+            self.log(f"sheet data loaded [{len(sheet_data)}]")
+            # cnt = 1
+            # for row in sheet_data:
+            #     time.sleep(1.1)
+            #     sheet.append_row(row)
+            #     self.log(f"sheet data loading [{cnt}/{len(sheet_data)}]")
+            #     cnt += 1
 
             # 셀 가운데 정렬 설정
             fmt = cellFormat(
